@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendar Horário - Sys Barber</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { background: #121212; color: white; font-family: 'Inter', sans-serif; }
+        .gold { background: linear-gradient(135deg, #D4AF37, #B8860B); }
+        .card { background: #1E1E1E; border: 1px solid #2D2D2D; }
+        input, select { background: #2D2D2D !important; color: white !important; border: 1px solid #444 !important; outline: none; }
+        input:focus { border-color: #D4AF37 !important; }
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-md mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold italic">Sys <span class="text-yellow-400">Barber</span></h1>
+            <p class="text-gray-400 text-sm">Agende seu estilo em segundos</p>
+        </header>
+
+        <div id="form-container" class="card p-6 rounded-2xl shadow-2xl border-t-4 border-yellow-400">
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-gray-500">Seu Nome</label>
+                    <input id="cliente-nome" type="text" placeholder="Ex: João Silva" class="w-full p-3 rounded-lg mt-1">
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-gray-500">Seu WhatsApp (DDD + Número)</label>
+                    <input id="cliente-fone" type="tel" placeholder="Ex: 11999998888" class="w-full p-3 rounded-lg mt-1">
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-gray-500">Escolha o Serviço</label>
+                    <select id="cliente-servico" class="w-full p-3 rounded-lg mt-1">
+                        <option value="">Carregando serviços...</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-gray-500">Data</label>
+                        <input id="cliente-data" type="date" class="w-full p-3 rounded-lg mt-1">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-gray-500">Horário</label>
+                        <input id="cliente-hora" type="time" class="w-full p-3 rounded-lg mt-1">
+                    </div>
+                </div>
+                <button id="btn-confirmar" class="gold w-full p-4 rounded-xl text-black font-bold uppercase mt-4 hover:brightness-110 active:scale-95 transition">Confirmar Agendamento</button>
+            </div>
+        </div>
+
+        <div id="feedback-sucesso" class="hidden text-center p-10 card rounded-2xl">
+            <div class="text-6xl mb-4">✨</div>
+            <h2 class="text-2xl font-bold text-yellow-400">Tudo pronto!</h2>
+            <p class="text-gray-400 mt-2">Seu horário foi reservado. Nos vemos em breve!</p>
+            <button onclick="location.reload()" class="mt-6 text-sm text-gray-500 underline">Fazer outro agendamento</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAa4sZN42xSCw1nggj5wi-_AsuzGMfBEYg",
+            authDomain: "barbershopsaas-2af6c.firebaseapp.com",
+            projectId: "barbershopsaas-2af6c",
+            storageBucket: "barbershopsaas-2af6c.firebasestorage.app",
+            messagingSenderId: "939177796204",
+            appId: "1:939177796204:web:f54a3cd48c485076d8ae49",
+            measurementId: "G-NP7SYJHN84"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- IMPORTANTE: TROQUE O CÓDIGO ABAIXO PELO SEU UID ---
+        const SEU_UID = "f8Qfu8lymBWnoXIwvQOQ2NoUFE83"; 
+
+        // Carregar serviços que VOCÊ cadastrou no sistema
+        async function buscarServicos() {
+            try {
+                const q = query(collection(db, "servicos"), where("userId", "==", SEU_UID));
+                const snap = await getDocs(q);
+                let html = '<option value="">Selecione...</option>';
+                snap.forEach(doc => {
+                    const s = doc.data();
+                    html += `<option value="${s.preco}" data-nome="${s.nome}">${s.nome} - R$ ${s.preco.toFixed(2)}</option>`;
+                });
+                document.getElementById("cliente-servico").innerHTML = html;
+            } catch (e) {
+                console.error("Erro ao carregar serviços:", e);
+                document.getElementById("cliente-servico").innerHTML = '<option>Erro ao carregar...</option>';
+            }
+        }
+        buscarServicos();
+
+        // Ação de Agendar
+        document.getElementById("btn-confirmar").onclick = async () => {
+            const nome = document.getElementById("cliente-nome").value;
+            const fone = document.getElementById("cliente-fone").value;
+            const data = document.getElementById("cliente-data").value;
+            const hora = document.getElementById("cliente-hora").value;
+            const select = document.getElementById("cliente-servico");
+
+            if (!nome || !fone || !data || !hora || !select.value) {
+                return alert("Por favor, preencha todos os campos!");
+            }
+
+            try {
+                await addDoc(collection(db, "agendamentos"), {
+                    cliente: nome + " (Online)",
+                    fone: fone,
+                    data: data,
+                    hora: hora,
+                    servico: select.options[select.selectedIndex].getAttribute('data-nome'),
+                    preco: parseFloat(select.value),
+                    status: "pendente",
+                    externo: true, // Para você saber que veio do link
+                    userId: SEU_UID,
+                    criado: serverTimestamp()
+                });
+
+                document.getElementById("form-container").classList.add("hidden");
+                document.getElementById("feedback-sucesso").classList.remove("hidden");
+            } catch (e) {
+                alert("Erro ao processar agendamento. Tente novamente.");
+                console.error(e);
+            }
+        };
+    </script>
+</body>
+</html>
