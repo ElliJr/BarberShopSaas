@@ -310,52 +310,62 @@
         function carregarTudo() {
             const uid = auth.currentUser.uid;
 
-            // Agenda
+            // 1. Agenda
             onSnapshot(query(collection(db, "agendamentos"), where("userId", "==", uid), orderBy("hora")), snap => {
-                let html = ""; let total = 0; let atend = 0;
+                let html = ""; let total = 0;
                 snap.forEach(d => {
                     const item = d.data();
-                    total += item.preco; atend++;
+                    total += item.preco;
                     html += `
-            <div class="card p-4 rounded-xl flex justify-between items-center border-l-4 border-yellow-400">
+            <div class="card p-3 flex justify-between items-center border-l-4 border-yellow-400">
                 <div>
-                    <p class="font-bold text-sm text-yellow-400">${item.hora}</p>
-                    <p class="text-xs font-bold">${item.cliente}</p>
-                    <p class="text-[9px] text-gray-500 uppercase">${item.servico}</p>
+                    <p class="font-bold text-sm">${item.hora} - ${item.cliente}</p>
+                    <p class="text-[10px] text-gray-500 uppercase">${item.servico}</p>
                 </div>
-                <div class="flex items-center gap-4">
-                    <span class="font-bold text-white text-sm">R$${item.preco.toFixed(2)}</span>
-                    <button onclick="remover('agendamentos','${d.id}')" class="text-gray-700">✕</button>
-                </div>
+                <button onclick="remover('agendamentos','${d.id}')" class="text-red-500 p-2 text-xl">&times;</button>
             </div>`;
                 });
-                document.getElementById("agenda").innerHTML = html || "<p class='text-center text-gray-600 text-xs py-10'>Sem agendamentos.</p>";
+                document.getElementById("agenda").innerHTML = html || "<p class='text-center text-gray-500 text-xs py-4'>Nenhum agendamento.</p>";
                 document.getElementById("faturamento").innerText = "R$ " + total.toFixed(2);
-                document.getElementById("atendimentos").innerText = atend;
+                document.getElementById("atendimentos").innerText = snap.size;
             });
 
-            // Clientes
+            // 2. Clientes
             onSnapshot(query(collection(db, "clientes"), where("userId", "==", uid)), snap => {
-                let html = ""; let select = "<option value=''>Selecionar Cliente...</option>";
+                let html = ""; let sel = "<option value=''>Selecionar Cliente</option>";
                 snap.forEach(d => {
                     const c = d.data();
-                    html += `<div class="card p-4 rounded-xl flex justify-between items-center"><span>${c.nome}</span><button onclick="remover('clientes','${d.id}')" class="text-xs text-red-900">Excluir</button></div>`;
-                    select += `<option value="${c.nome}">${c.nome}</option>`;
+                    html += `
+            <div class="card p-3 flex justify-between items-center">
+                <div>
+                    <p class="font-bold text-sm">${c.nome}</p>
+                    <p class="text-[10px] text-gray-500">${c.fone || 'Sem fone'}</p>
+                </div>
+                <button onclick="remover('clientes','${d.id}')" class="bg-red-900/20 text-red-500 px-3 py-1 rounded text-xs font-bold">EXCLUIR</button>
+            </div>`;
+                    sel += `<option value="${c.nome}">${c.nome}</option>`;
                 });
-                document.getElementById("lista-clientes").innerHTML = html;
-                document.getElementById("input-cliente").innerHTML = select;
+                document.getElementById("lista-clientes").innerHTML = html || "<p class='text-center text-gray-500 text-xs py-4'>Nenhum cliente.</p>";
+                document.getElementById("input-cliente").innerHTML = sel;
             });
 
-            // Serviços
+            // 3. Serviços
             onSnapshot(query(collection(db, "servicos"), where("userId", "==", uid)), snap => {
-                let html = ""; let select = "<option value=''>Selecionar Serviço...</option>";
+                let html = ""; let sel = "<option value=''>Selecionar Serviço</option>";
                 snap.forEach(d => {
                     const s = d.data();
-                    html += `<div class="card p-4 rounded-xl flex justify-between items-center"><span>${s.nome}</span><span class="text-yellow-400 font-bold">R$${s.preco.toFixed(2)}</span></div>`;
-                    select += `<option value="${s.preco}">${s.nome} - R$${s.preco.toFixed(2)}</option>`;
+                    html += `
+            <div class="card p-3 flex justify-between items-center">
+                <div>
+                    <p class="font-bold text-sm">${s.nome}</p>
+                    <p class="text-yellow-400 text-xs font-bold">R$ ${s.preco.toFixed(2)}</p>
+                </div>
+                <button onclick="remover('servicos','${d.id}')" class="bg-red-900/20 text-red-500 px-3 py-1 rounded text-xs font-bold">EXCLUIR</button>
+            </div>`;
+                    sel += `<option value="${s.preco}">${s.nome} - R$ ${s.preco.toFixed(2)}</option>`;
                 });
-                document.getElementById("lista-servicos").innerHTML = html;
-                document.getElementById("input-servico").innerHTML = select;
+                document.getElementById("lista-servicos").innerHTML = html || "<p class='text-center text-gray-500 text-xs py-4'>Nenhum serviço.</p>";
+                document.getElementById("input-servico").innerHTML = sel;
             });
         }
 
@@ -363,7 +373,19 @@
         window.modal = (v) => document.getElementById("modal").classList.toggle("hidden", !v);
         window.openModal = (id) => document.getElementById(id).classList.remove("hidden");
         window.closeModal = (id) => document.getElementById(id).classList.add("hidden");
-        window.remover = async (col, id) => { if (confirm("Remover?")) await deleteDoc(doc(db, col, id)); };
+        window.remover = async (colecao, id) => {
+            const confirmacao = confirm("Tem certeza que deseja excluir este item permanentemente?");
+
+            if (confirmacao) {
+                try {
+                    await deleteDoc(doc(db, colecao, id));
+                    // O onSnapshot cuidará de atualizar a lista sozinho
+                } catch (e) {
+                    console.error("Erro ao excluir:", e);
+                    alert("Não foi possível excluir o item. Verifique sua conexão.");
+                }
+            }
+        };
 
         document.getElementById("btn-login").onclick = async () => {
             try { await signInWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("senha").value); }
@@ -381,4 +403,4 @@
     </script>
 </body>
 
-</html> 
+</html>
