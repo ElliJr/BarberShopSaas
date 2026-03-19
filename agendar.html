@@ -15,8 +15,8 @@
             font-family: 'Inter', sans-serif;
         }
 
-        .gold {
-            background: linear-gradient(135deg, #D4AF37, #B8860B);
+        .teal {
+            background: linear-gradient(135deg, #1b38f3, #131530);
         }
 
         .card {
@@ -45,11 +45,11 @@
 <body class="p-6">
     <div class="max-w-md mx-auto">
         <header class="text-center mb-8">
-            <h1 class="text-3xl font-bold italic">Sys <span class="text-yellow-400">Barber</span></h1>
+            <h1 class="text-3xl font-bold italic">Agenda<span class="text-cyan-400">Fáciç</span></h1>
             <p id="nome-barbearia" class="text-gray-400 text-sm italic">Carregando barbearia...</p>
         </header>
 
-        <div id="form-container" class="card p-6 rounded-2xl shadow-2xl border-t-4 border-yellow-400">
+        <div id="form-container" class="card p-6 rounded-2xl shadow-2xl border-t-4 border-cyan-400">
             <div class="space-y-4">
                 <div>
                     <label class="text-[10px] uppercase font-bold text-gray-500">Seu Nome</label>
@@ -78,14 +78,14 @@
                     </div>
                 </div>
                 <button id="btn-confirmar"
-                    class="gold w-full p-4 rounded-xl text-black font-bold uppercase mt-4 hover:brightness-110 active:scale-95 transition">Confirmar
+                    class="teal w-full p-4 rounded-xl text-black font-bold uppercase mt-4 hover:brightness-110 active:scale-95 transition">Confirmar
                     Agendamento</button>
             </div>
         </div>
 
         <div id="feedback-sucesso" class="hidden text-center p-10 card rounded-2xl">
             <div class="text-6xl mb-4">✨</div>
-            <h2 class="text-2xl font-bold text-yellow-400">Tudo pronto!</h2>
+            <h2 class="text-2xl font-bold text-teal-400">Tudo pronto!</h2>
             <p class="text-gray-400 mt-2">Seu horário foi reservado. Nos vemos em breve!</p>
             <button onclick="location.reload()" class="mt-6 text-sm text-gray-500 underline">Fazer outro
                 agendamento</button>
