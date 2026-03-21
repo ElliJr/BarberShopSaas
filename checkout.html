@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamento Seguro - Agenda Fácil</title>
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #121212;
+            color: white;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .card-dark {
+            background: #1E1E1E;
+            border: 1px solid #2D2D2D;
+        }
+
+        .mp-input {
+            background: #2D2D2D;
+            border: 1px solid #444;
+            border-radius: 12px;
+            height: 48px;
+            padding: 10px;
+        }
+
+        input,
+        select {
+            background: #2D2D2D !important;
+            color: white !important;
+            border: 1px solid #444 !important;
+            border-radius: 12px;
+            padding: 12px;
+            width: 100%;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #22d3ee !important;
+        }
+
+        .btn-cyan {
+            background: linear-gradient(135deg, #0891b2, #1e3a8a);
+        }
+    </style>
+</head>
+
+<body class="p-4 flex items-center justify-center min-h-screen">
+
+    <div class="max-w-md w-full card-dark rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
+        <div class="p-8 text-center border-b border-white/5">
+            <h1 class="text-xl font-bold italic">Agenda <span class="text-cyan-400">Fácil</span></h1>
+            <p id="plano-nome" class="text-gray-500 text-[10px] uppercase tracking-widest mt-1">Carregando plano...</p>
+        </div>
+
+        <form id="form-checkout" class="p-8 space-y-4">
+            <div class="bg-cyan-400/5 p-6 rounded-3xl border border-cyan-400/20 mb-6 text-center">
+                <p class="text-gray-500 text-[10px] uppercase font-bold">Total a pagar</p>
+                <h2 id="valor-display" class="text-4xl font-bold text-cyan-400">R$ 0,00</h2>
+            </div>
+
+            <div class="space-y-1">
+                <label class="text-[10px] text-gray-500 uppercase font-bold">Número do Cartão</label>
+                <div id="cardNumberId" class="mp-input"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="text-[10px] text-gray-500 uppercase font-bold">Expiração</label>
+                    <div id="expirationDateId" class="mp-input"></div>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] text-gray-500 uppercase font-bold">CVV</label>
+                    <div id="securityCodeId" class="mp-input"></div>
+                </div>
+            </div>
+
+            <input type="text" id="form-checkout__cardholderName" placeholder="Nome no Cartão" />
+            <input type="email" id="form-checkout__cardholderEmail" placeholder="E-mail" />
+
+            <div class="grid grid-cols-3 gap-2">
+                <select id="form-checkout__identificationType"></select>
+                <input type="text" id="form-checkout__identificationNumber" placeholder="CPF" class="col-span-2" />
+            </div>
+
+            <select id="form-checkout__issuer" class="hidden"></select>
+            <select id="form-checkout__installments"></select>
+
+            <button onclick="window.location.href = 'confirmAssinatura.html'" type="submit" id="form-checkout__submit"
+                class="btn-cyan w-full text-black font-bold py-5 rounded-2xl uppercase tracking-widest text-xs mt-6">
+                Finalizar Pagamento
+            </button>
+        </form>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAa4sZN42xSCw1nggj5wi-_AsuzGMfBEYg",
+            authDomain: "barbershopsaas-2af6c.firebaseapp.com",
+            projectId: "barbershopsaas-2af6c",
+            storageBucket: "barbershopsaas-2af6c.firebasestorage.app",
+            messagingSenderId: "939177796204",
+            appId: "1:939177796204:web:85557a0c3665721cd8ae49"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // 1. Pegar dados da URL com segurança
+        const params = new URLSearchParams(window.location.search);
+        const valor = params.get('amount') || "1.00";
+        const plano = params.get('plan') || "Plano PRO";
+
+        // Atualiza a interface
+        const valorDisplay = document.getElementById('valor-display');
+        const planoDisplay = document.getElementById('plano-nome');
+        if (valorDisplay) valorDisplay.innerText = `R$ ${valor.replace('.', ',')}`;
+        if (planoDisplay) planoDisplay.innerText = plano;
+
+        // 2. Função para iniciar o Mercado Pago (Só roda se o formulário existir)
+        const iniciarMercadoPago = () => {
+            const public_key = 'APP_USR-77f18003-2f39-494a-8a4b-1f520924c239';
+            const mp = new MercadoPago(public_key);
+
+            // Verifica se o formulário está no DOM antes de iniciar
+            const formCheck = document.getElementById("form-checkout");
+            if (!formCheck) {
+                console.error("Erro: Formulário 'form-checkout' não encontrado.");
+                return;
+            }
+
+            const cardForm = mp.cardForm({
+                amount: valor,
+                iframe: true,
+                form: {
+                    id: "form-checkout",
+                    cardNumber: { id: "cardNumberId", placeholder: "0000 0000 0000 0000" },
+                    expirationDate: { id: "expirationDateId", placeholder: "MM/AA" },
+                    securityCode: { id: "securityCodeId", placeholder: "123" },
+                    cardholderName: { id: "form-checkout__cardholderName" },
+                    issuer: { id: "form-checkout__issuer" },
+                    installments: { id: "form-checkout__installments" },
+                    identificationType: { id: "form-checkout__identificationType" },
+                    identificationNumber: { id: "form-checkout__identificationNumber" },
+                    cardholderEmail: { id: "form-checkout__cardholderEmail" },
+                },
+                callbacks: {
+                    onFormMounted: error => {
+                        if (error) return console.warn("Erro ao montar form: ", error);
+                        console.log("Mercado Pago pronto!");
+                    },
+                    onSubmit: async event => {
+                        event.preventDefault();
+
+                        // Mostra um loading (opcional)
+                        const btn = document.getElementById("form-checkout__submit");
+                        if (btn) btn.innerText = "PROCESSANDO...";
+
+                        try {
+                            const formData = cardForm.getCardFormData();
+
+                            if (auth.currentUser) {
+                                const expira = new Date();
+                                expira.setMonth(expira.getMonth() + 1);
+
+                                await updateDoc(doc(db, "perfis", auth.currentUser.uid), {
+                                    statusPagamento: "ativo",
+                                    planoAtivo: plano,
+                                    expiraEm: expira,
+                                    dataPagamento: serverTimestamp(),
+                                    valorAssinatura: valor
+                                });
+
+                                window.location.href = `sucesso.html?id=MP-${Math.random().toString(36).substring(7).toUpperCase()}`;
+                            } else {
+                                alert("Erro: Usuário não identificado. Faça login novamente.");
+                            }
+                        } catch (e) {
+                            alert("Erro ao processar pagamento: " + e.message);
+                            if (btn) btn.innerText = "FINALIZAR PAGAMENTO";
+                        }
+                    }
+                }
+            });
+        };
+
+        // 3. Aguarda o Firebase confirmar o usuário para liberar o Mercado Pago
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("Usuário logado:", user.email);
+                // Pequeno delay para garantir que o HTML está 100% renderizado
+                setTimeout(iniciarMercadoPago, 500);
+            } else {
+                alert("Você precisa estar logado para assinar.");
+                window.location.href = "index.html";
+            }
+        });
+    </script>
+</body>
+
+</html>

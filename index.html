@@ -57,10 +57,11 @@
             <h2 class="text-2xl font-bold text-white mb-2 italic">Assinatura Expirada</h2>
             <p class="text-gray-400 text-sm mb-6">Para continuar gerenciando seus agendamentos e faturamento
                 online, ative sua licença PRO.</p>
-            <a href="https://wa.me/55SEUNUMERO" target="_blank"
+            <a onclick="window.location.href='contratacaoAssinatura.html'" target="_blank"
                 class="teal block w-full p-4 rounded-xl text-black font-bold uppercase hover:scale-105 transition">Ativar
                 Agora</a>
-            <button id="logout-bloqueio" class="mt-4 text-xs text-gray-600 underline uppercase tracking-widest">Sair da
+            <button onclick="window.location.href='login.html'" id="logout-bloqueio"
+                class="mt-4 text-xs text-gray-600 underline uppercase tracking-widest">Sair da
                 conta</button>
         </div>
     </div>
@@ -103,7 +104,23 @@
             <button onclick="tab('config')" id="t-config" class="p-4 tab-btn">Config</button>
             <button onclick="tab('historico')" id="t-historico" class="p-4 tab-btn">Histórico</button>
         </div>
-
+        <div class="card p-6 rounded-2xl border-l-4 border-yellow-500 mt-4 bg-yellow-500/5">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-[10px] text-yellow-500 font-bold">Plano Atual</p>
+                    <h3 id="status-plano-texto" class="text-lg font-bold">Carregando...</h3>
+                    <p id="data-expira-texto" class="text-[10px] text-gray-500 italic"></p>
+                </div>
+                <button id="btn-assinar-agora"
+                    class="hidden teal text-black px-4 py-2 rounded-xl text-[10px] font-bold uppercase shadow-lg shadow-blue-900/40">
+                    Assinar PRO - R$ 1,00
+                </button>
+                <button id="btn-cancelar-agora"
+                    class="hidden teal text-black px-4 py-2 rounded-xl text-[10px] font-bold  shadow-lg shadow-red-900/40">
+                    Cancelar plano
+                </button>
+            </div>
+        </div>
         <main class="p-6 max-w-2xl mx-auto pb-32">
             <div id="view-home" class="view">
                 <div class="grid grid-cols-2 gap-4 mb-8">
@@ -213,6 +230,7 @@
         </div>
     </div>
 
+
     <div id="modal-cliente" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-4">
         <div class="card p-6 rounded-2xl w-full max-w-md">
             <h2 class="font-bold mb-6 text-teal-400 uppercase text-xs tracking-widest">Adicionar Cliente</h2>
@@ -259,6 +277,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const BARBER_ID = urlParams.get('id');
         const somNotificacao = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
         setPersistence(auth, browserLocalPersistence);
@@ -306,10 +325,8 @@
         // --- MONITOR DE AUTENTICAÇÃO ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // Gerar link de agendamento dinâmico
                 const linkFinal = `https://barbersys.xyz/agendar.html?id=${user.uid}`;
                 document.getElementById("link-externo").value = linkFinal;
-
                 onSnapshot(doc(db, "perfis", user.uid), (snap) => {
                     document.getElementById("loading").classList.add("hidden");
                     if (snap.exists()) {
@@ -331,8 +348,69 @@
                         }
                     }
                 });
+                onSnapshot(doc(db, "perfis", user.uid), (snap) => {
+                    document.getElementById("loading").classList.add("hidden");
+                    if (snap.exists()) {
+                        const data = snap.data();
+                        const agora = new Date();
+                        const expiraEm = data.expiraEm ? data.expiraEm.toDate() : null;
+
+                        // --- LOGICA DA INTERFACE DE ASSINATURA ---
+                        const btnAssinar = document.getElementById("btn-assinar-agora");
+                        const btnCancelar = document.getElementById("btn-cancelar-agora");
+                        const txtStatus = document.getElementById("status-plano-texto");
+                        const txtExpira = document.getElementById("data-expira-texto");
+
+                        const isPro = expiraEm && agora < expiraEm && data.statusPagamento === "ativo";
+
+                        if (isPro) {
+                            txtStatus.innerText = "Plano PRO Ativo";
+                            txtStatus.className = "text-lg font-bold text-cyan-400";
+                            txtExpira.innerText = `Válido até: ${expiraEm.toLocaleDateString('pt-BR')}`;
+
+                            btnAssinar.classList.add("hidden");
+                            btnCancelar.classList.remove("hidden");
+                        } else {
+                            txtStatus.innerText = "Plano Grátis / Expirado";
+                            txtStatus.className = "text-lg font-bold text-yellow-500";
+                            txtExpira.innerText = "Assine para liberar todos os recursos.";
+
+                            btnAssinar.classList.remove("hidden");
+                            btnCancelar.classList.add("hidden");
+                        }
+
+                        // --- AÇÕES DOS BOTÕES ---
+
+                        // Pagar 1 Real (Redireciona para o seu checkout.html)
+                        btnAssinar.onclick = () => {
+                            window.location.href = `checkout.html?plan=PRO%20Mensal&amount=1.00`;
+                        };
+
+                        // Cancelar Plano (Muda status no Firebase)
+                        btnCancelar.onclick = async () => {
+                            if (confirm("Deseja realmente cancelar sua assinatura PRO?")) {
+                                await updateDoc(doc(db, "perfis", user.uid), {
+                                    statusPagamento: "cancelado",
+                                    // Definimos a expiração para agora para bloquear o acesso
+                                    expiraEm: serverTimestamp()
+                                });
+                                alert("Assinatura cancelada com sucesso.");
+                            }
+                        };
+
+                        // --- CONTROLE DE BLOQUEIO DE TELA ---
+                        if (expiraEm && agora > expiraEm || data.statusPagamento === "cancelado") {
+                            document.getElementById("bloqueio-pagamento").classList.remove("hidden");
+                            document.getElementById("dashboard").classList.add("hidden");
+                        } else {
+                            document.getElementById("bloqueio-pagamento").classList.add("hidden");
+                            document.getElementById("dashboard").classList.remove("hidden");
+                            document.getElementById("login").classList.add("hidden");
+                        }
+                    }
+                });
                 carregarTudo();
-                monitorarAgendamentosExternos(); // Ativa o "Plim!"
+                monitorarAgendamentosExternos();
             } else {
                 document.getElementById("loading").classList.add("hidden");
                 document.getElementById("dashboard").classList.add("hidden");
@@ -484,29 +562,92 @@
             });
             modal(false);
         };
+        // --- SALVAR CLIENTE ---
         document.getElementById("btn-save-cliente").onclick = async () => {
             const nome = document.getElementById("c-nome").value;
             const fone = document.getElementById("c-fone").value;
+
+            // Verifica se o usuário está logado antes de tentar salvar
+            const user = auth.currentUser;
+            if (!user) return alert("Erro: Você precisa estar logado!");
+
             if (!nome || !fone) return alert("Preencha tudo!");
-            await addDoc(collection(db, "clientes"), { nome, fone, userId: auth.currentUser.uid, emailBarbearia: auth.currentUser.email });
-            closeModal('modal-cliente');
+
+            try {
+                await addDoc(collection(db, "clientes"), {
+                    nome: nome,
+                    fone: fone,
+                    userId: user.uid,
+                    emailBarbearia: user.email,
+                    criadoEm: new Date() // Bom ter para organizar a lista depois
+                });
+
+                alert("Cliente salvo com sucesso!");
+                document.getElementById("c-nome").value = "";
+                document.getElementById("c-fone").value = "";
+                closeModal('modal-cliente');
+            } catch (error) {
+                console.error("Erro ao salvar cliente:", error);
+                alert("Erro técnico ao salvar. Verifique o console.");
+            }
         };
+
+        // --- SALVAR SERVIÇO ---
         document.getElementById("btn-save-servico").onclick = async () => {
             const nome = document.getElementById("s-nome").value;
-            const preco = parseFloat(document.getElementById("s-preco").value);
+            const precoInput = document.getElementById("s-preco").value;
+            const preco = parseFloat(precoInput);
+            const user = auth.currentUser;
 
+            if (!user) return alert("Erro: Usuário não identificado.");
             if (!nome || isNaN(preco)) return alert("Preencha o nome e o preço corretamente!");
 
-            await addDoc(collection(db, "servicos"), {
-                nome: nome,
-                preco: preco,
-                userId: auth.currentUser.uid,
-                emailBarbearia: auth.currentUser.email // <--- Carimbo de segurança
-            });
+            try {
+                await addDoc(collection(db, "servicos"), {
+                    nome: nome,
+                    preco: preco,
+                    userId: user.uid,
+                    emailBarbearia: user.email,
+                    criadoEm: new Date()
+                });
 
-            document.getElementById("s-nome").value = "";
-            document.getElementById("s-preco").value = "";
-            closeModal('modal-servico');
+                alert("Serviço salvo!");
+                document.getElementById("s-nome").value = "";
+                document.getElementById("s-preco").value = "";
+                closeModal('modal-servico');
+            } catch (error) {
+                console.error("Erro ao salvar serviço:", error);
+                alert("Erro ao salvar serviço.");
+            }
+        };
+
+        // --- SALVAR SERVIÇO ---
+        document.getElementById("btn-save-servico").onclick = async () => {
+            const nome = document.getElementById("s-nome").value;
+            const precoInput = document.getElementById("s-preco").value;
+            const preco = parseFloat(precoInput);
+            const user = auth.currentUser;
+
+            if (!user) return alert("Erro: Usuário não identificado.");
+            if (!nome || isNaN(preco)) return alert("Preencha o nome e o preço corretamente!");
+
+            try {
+                await addDoc(collection(db, "servicos"), {
+                    nome: nome,
+                    preco: preco,
+                    userId: user.uid,
+                    emailBarbearia: user.email,
+                    criadoEm: new Date()
+                });
+
+                alert("Serviço salvo!");
+                document.getElementById("s-nome").value = "";
+                document.getElementById("s-preco").value = "";
+                closeModal('modal-servico');
+            } catch (error) {
+                console.error("Erro ao salvar serviço:", error);
+                alert("Erro ao salvar serviço.");
+            }
         };
     </script>
 </body>

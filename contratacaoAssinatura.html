@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escolha seu Plano - Agenda Fácil</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { background: #121212; color: white; font-family: 'Inter', sans-serif; }
+        .card-plan { 
+            background: #1E1E1E; 
+            border: 1px solid #2D2D2D; 
+            transition: all 0.3s ease;
+        }
+        .card-plan:hover { 
+            border-color: #22d3ee; 
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(34, 211, 238, 0.1);
+        }
+        .btn-cyan {
+            background: linear-gradient(135deg, #0891b2, #1e3a8a);
+        }
+        .pro-badge {
+            background: linear-gradient(90deg, #22d3ee, #0891b2);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-6">
+
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold italic mb-2">Agenda <span class="text-cyan-400">Fácil</span></h1>
+        <p class="text-gray-500 uppercase tracking-[0.3em] text-xs font-bold">Escolha a sua evolução</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
+        
+        <div class="card-plan rounded-[2.5rem] p-8 flex flex-col">
+            <div class="mb-8">
+                <h2 class="text-xl font-bold text-gray-400">Plano Basic</h2>
+                <div class="flex items-baseline mt-4">
+                    <span class="text-4xl font-bold text-white text-gray-500">R$ 0</span>
+                    <span class="text-gray-600 ml-2">/sempre</span>
+                </div>
+            </div>
+            
+            <ul class="space-y-4 mb-10 flex-1 text-sm text-gray-500">
+                <li class="flex items-center">✅ Até 50 agendamentos</li>
+                <li class="flex items-center">✅ Cadastro de Clientes</li>
+                <li class="flex items-center">❌ Link de Agendamento Online</li>
+                <li class="flex items-center">❌ Relatórios Financeiros</li>
+            </ul>
+
+            <button disabled class="w-full py-4 rounded-2xl bg-white/5 text-gray-600 font-bold uppercase text-[10px] tracking-widest cursor-not-allowed">
+                Plano Atual
+            </button>
+        </div>
+
+        <div class="card-plan rounded-[2.5rem] p-8 flex flex-col border-cyan-400/30 relative overflow-hidden">
+            <div class="absolute top-0 right-0 pro-badge px-6 py-1 text-[10px] font-bold text-black uppercase tracking-widest rounded-bl-2xl">
+                Recomendado
+            </div>
+
+            <div class="mb-8">
+                <h2 class="text-xl font-bold text-cyan-400">Plano PRO</h2>
+                <div class="flex items-baseline mt-4">
+                    <span class="text-4xl font-bold text-white">R$ 1,00</span>
+                    <span class="text-gray-400 ml-2">/mês</span>
+                    <span class="ml-2 text-[10px] bg-white/10 px-2 py-1 rounded text-cyan-400 font-bold italic">VALOR TESTE</span>
+                </div>
+            </div>
+            
+            <ul class="space-y-4 mb-10 flex-1 text-sm text-gray-300">
+                <li class="flex items-center text-cyan-400 font-semibold">✨ Agendamentos Ilimitados</li>
+                <li class="flex items-center">✅ Link de Agendamento Online</li>
+                <li class="flex items-center">✅ Painel Financeiro Detalhado</li>
+                <li class="flex items-center">✅ Suporte Prioritário</li>
+                <li class="flex items-center">✅ Sem Anúncios</li>
+            </ul>
+
+            <button onclick="window.location.href='checkout.html?plan=PRO%20Mensal&amount=1.00'" 
+                class="btn-cyan w-full py-4 rounded-2xl text-black font-bold uppercase text-[10px] tracking-widest hover:scale-105 transition shadow-lg shadow-cyan-900/40">
+                Assinar Agora
+            </button>
+        </div>
+
+    </div>
+
+    <p class="mt-12 text-gray-600 text-[10px] uppercase tracking-widest text-center">
+        Pagamento processado com segurança via <br>
+        <span class="font-bold text-blue-500">Mercado Pago</span>
+    </p>
+
+</body>
+</html>

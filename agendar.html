@@ -159,38 +159,60 @@
 
         inicializarPagina();
 
-        // Ação de Agendar
-        document.getElementById("btn-confirmar").onclick = async () => {
-            const nome = document.getElementById("cliente-nome").value;
-            const fone = document.getElementById("cliente-fone").value;
-            const data = document.getElementById("cliente-data").value;
-            const hora = document.getElementById("cliente-hora").value;
-            const select = document.getElementById("cliente-servico");
+        const btnConfirmar = document.getElementById("btn-confirmar");
+        if (btnConfirmar) {
+            btnConfirmar.onclick = async () => {
+                const nome = document.getElementById("cliente-nome").value;
+                const fone = document.getElementById("cliente-fone").value;
+                const data = document.getElementById("cliente-data").value;
+                const hora = document.getElementById("cliente-hora").value;
+                const select = document.getElementById("cliente-servico");
 
-            if (!nome || !fone || !data || !hora || !select.value) {
-                return alert("Por favor, preencha todos os campos!");
-            }
+                if (!nome || !fone || !data || !hora || !select.value) {
+                    return alert("Por favor, preencha todos os campos!");
+                }
 
-            try {
-                await addDoc(collection(db, "agendamentos"), {
-                    cliente: nome,
-                    fone: fone,
-                    data: data,
-                    hora: hora,
-                    servico: select.options[select.selectedIndex].getAttribute('data-nome'),
-                    preco: parseFloat(select.value),
-                    status: "pendente",
-                    externo: true,
-                    userId: BARBER_ID,
-                    criado: serverTimestamp()
-                });
+                btnConfirmar.disabled = true;
+                btnConfirmar.innerText = "AGENDANDO...";
 
-                document.getElementById("form-container").classList.add("hidden");
-                document.getElementById("feedback-sucesso").classList.remove("hidden");
-            } catch (e) {
-                alert("Erro ao agendar. Tente novamente.");
-            }
-        };
+                try {
+                    // SALVAMENTO 1: AGENDAMENTO
+                    await addDoc(collection(db, "agendamentos"), {
+                        cliente: nome,
+                        fone: fone,
+                        data: data,
+                        hora: hora,
+                        servico: select.options[select.selectedIndex].getAttribute('data-nome'),
+                        preco: parseFloat(select.value),
+                        status: "pendente",
+                        externo: true,
+                        userId: BARBER_ID,
+                        criado: serverTimestamp()
+                    });
+
+                    // SALVAMENTO 2: CLIENTE NA BASE DO BARBEIRO
+                    await addDoc(collection(db, "clientes"), {
+                        nome: nome,
+                        fone: fone,
+                        userId: BARBER_ID,
+                        origem: "Link Externo",
+                        dataCadastro: serverTimestamp(),
+                        statusAssinatura: "indefinido"
+                    });
+
+                    // MOSTRAR SUCESSO
+                    document.getElementById("form-container").classList.add("hidden");
+                    document.getElementById("feedback-sucesso").classList.remove("hidden");
+
+                } catch (e) {
+                    console.error("Erro ao processar:", e);
+                    alert("Erro ao agendar. Tente novamente.");
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.innerText = "Confirmar Agendamento";
+                }
+            };
+        }
+
     </script>
 </body>
 
