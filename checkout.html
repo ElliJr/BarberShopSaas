@@ -131,8 +131,8 @@
         document.getElementById('plano-nome').innerText = plano;
 
         const iniciarMercadoPago = () => {
-            const mp = new MercadoPago('SUA_PUBLIC_KEY_AQUI'); // Use sua Public Key (APP_USR-...)
-
+            const mp = new MercadoPago('APP_USR-77f18003-2f39-494a-8a4b-1f520924c239'); // Use sua Public Key (APP_USR-...)
+            
             const cardForm = mp.cardForm({
                 amount: valorOriginal,
                 iframe: true,
