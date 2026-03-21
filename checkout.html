@@ -9,43 +9,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            background: #121212;
-            color: white;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .card-dark {
-            background: #1E1E1E;
-            border: 1px solid #2D2D2D;
-        }
-
-        .mp-input {
-            background: #2D2D2D;
-            border: 1px solid #444;
-            border-radius: 12px;
-            height: 48px;
-            padding: 10px;
-        }
-
-        input,
-        select {
-            background: #2D2D2D !important;
-            color: white !important;
-            border: 1px solid #444 !important;
-            border-radius: 12px;
-            padding: 12px;
-            width: 100%;
-            outline: none;
-        }
-
-        input:focus {
-            border-color: #22d3ee !important;
-        }
-
-        .btn-cyan {
-            background: linear-gradient(135deg, #0891b2, #1e3a8a);
-        }
+        body { background: #121212; color: white; font-family: 'Inter', sans-serif; }
+        .card-dark { background: #1E1E1E; border: 1px solid #2D2D2D; }
+        .mp-input { background: #2D2D2D; border: 1px solid #444; border-radius: 12px; height: 48px; padding: 10px; }
+        input, select { background: #2D2D2D !important; color: white !important; border: 1px solid #444 !important; border-radius: 12px; padding: 12px; width: 100%; outline: none; }
+        input:focus { border-color: #22d3ee !important; }
+        .btn-cyan { background: linear-gradient(135deg, #0891b2, #1e3a8a); }
+        .hidden { display: none; }
     </style>
 </head>
 
@@ -79,19 +49,19 @@
                 </div>
             </div>
 
-            <input type="text" id="form-checkout__cardholderName" placeholder="Nome no Cartão" />
-            <input type="email" id="form-checkout__cardholderEmail" placeholder="E-mail" />
+            <input type="text" id="form-checkout__cardholderName" placeholder="Nome no Cartão" required />
+            <input type="email" id="form-checkout__cardholderEmail" placeholder="E-mail" required />
 
             <div class="grid grid-cols-3 gap-2">
                 <select id="form-checkout__identificationType"></select>
-                <input type="text" id="form-checkout__identificationNumber" placeholder="CPF" class="col-span-2" />
+                <input type="text" id="form-checkout__identificationNumber" placeholder="CPF/CNPJ" class="col-span-2" required />
             </div>
 
             <select id="form-checkout__issuer" class="hidden"></select>
             <select id="form-checkout__installments"></select>
 
-            <button onclick="window.location.href = 'confirmAssinatura.html'" type="submit" id="form-checkout__submit"
-                class="btn-cyan w-full text-black font-bold py-5 rounded-2xl uppercase tracking-widest text-xs mt-6">
+            <button type="submit" id="form-checkout__submit"
+                class="btn-cyan w-full text-black font-bold py-5 rounded-2xl uppercase tracking-widest text-xs mt-6 transition hover:brightness-110 active:scale-95 disabled:opacity-50">
                 Finalizar Pagamento
             </button>
         </form>
@@ -115,31 +85,19 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // 1. Pegar dados da URL com segurança
         const params = new URLSearchParams(window.location.search);
-        const valor = params.get('amount') || "1.00";
-        const plano = params.get('plan') || "Plano PRO";
+        const valorOriginal = params.get('amount') || "0.00";
+        const plano = params.get('plan') || "Plano Profissional";
 
-        // Atualiza a interface
-        const valorDisplay = document.getElementById('valor-display');
-        const planoDisplay = document.getElementById('plano-nome');
-        if (valorDisplay) valorDisplay.innerText = `R$ ${valor.replace('.', ',')}`;
-        if (planoDisplay) planoDisplay.innerText = plano;
+        document.getElementById('valor-display').innerText = `R$ ${valorOriginal.replace('.', ',')}`;
+        document.getElementById('plano-nome').innerText = plano;
 
-        // 2. Função para iniciar o Mercado Pago (Só roda se o formulário existir)
         const iniciarMercadoPago = () => {
-            const public_key = 'APP_USR-4622444396438923-032022-fb8b8ec8f8ae891918be16bfeccf9992-3281358589';
-            const mp = new MercadoPago(public_key);
-
-            // Verifica se o formulário está no DOM antes de iniciar
-            const formCheck = document.getElementById("form-checkout");
-            if (!formCheck) {
-                console.error("Erro: Formulário 'form-checkout' não encontrado.");
-                return;
-            }
+            // USANDO SUA CHAVE PÚBLICA FORNECIDA
+            const mp = new MercadoPago('APP_USR-4622444396438923-032022-fb8b8ec8f8ae891918be16bfeccf9992-3281358589');
 
             const cardForm = mp.cardForm({
-                amount: valor,
+                amount: valorOriginal,
                 iframe: true,
                 form: {
                     id: "form-checkout",
@@ -155,56 +113,59 @@
                 },
                 callbacks: {
                     onFormMounted: error => {
-                        if (error) return console.warn("Erro ao montar form: ", error);
-                        console.log("Mercado Pago pronto!");
+                        if (error) return console.warn("Erro ao montar MP: ", error);
+                        console.log("Mercado Pago pronto.");
                     },
                     onSubmit: async event => {
                         event.preventDefault();
 
-                        // Mostra um loading (opcional)
                         const btn = document.getElementById("form-checkout__submit");
-                        if (btn) btn.innerText = "PROCESSANDO...";
+                        btn.innerText = "PROCESSANDO...";
+                        btn.disabled = true;
 
                         try {
                             const formData = cardForm.getCardFormData();
+                            const token = formData.token; // Aqui o MP gera o token do cartão
 
-                            if (auth.currentUser) {
-                                const expira = new Date();
-                                expira.setMonth(expira.getMonth() + 1);
+                            if (!auth.currentUser) throw new Error("Usuário deslogado.");
 
-                                await updateDoc(doc(db, "perfis", auth.currentUser.uid), {
-                                    statusPagamento: "ativo",
-                                    planoAtivo: plano,
-                                    expiraEm: expira,
-                                    dataPagamento: serverTimestamp(),
-                                    valorAssinatura: valor
-                                });
+                            // 1. CALCULA EXPIRAÇÃO (30 dias)
+                            const dataExpira = new Date();
+                            dataExpira.setMonth(dataExpira.getMonth() + 1);
 
-                                window.location.href = `sucesso.html?id=MP-${Math.random().toString(36).substring(7).toUpperCase()}`;
-                            } else {
-                                alert("Erro: Usuário não identificado. Faça login novamente.");
-                            }
+                            // 2. ATUALIZA FIREBASE (Libera o sistema para o Barbeiro)
+                            await updateDoc(doc(db, "perfis", auth.currentUser.uid), {
+                                statusPagamento: "ativo",
+                                planoAtivo: plano,
+                                expiraEm: dataExpira,
+                                ultimoPagamento: serverTimestamp(),
+                                valorAssinatura: parseFloat(valorOriginal),
+                                mpToken: token // Guardamos o token para referência
+                            });
+
+                            // 3. SUCESSO - REDIRECIONA
+                            const transacaoId = `MP-${Math.random().toString(36).substring(7).toUpperCase()}`;
+                            window.location.href = `sucesso.html?id=${transacaoId}&valor=${valorOriginal}`;
+
                         } catch (e) {
-                            alert("Erro ao processar pagamento: " + e.message);
-                            if (btn) btn.innerText = "FINALIZAR PAGAMENTO";
+                            console.error("Falha no pagamento:", e);
+                            alert("Erro: " + e.message);
+                            btn.innerText = "Finalizar Pagamento";
+                            btn.disabled = false;
                         }
                     }
                 }
             });
         };
 
-        // 3. Aguarda o Firebase confirmar o usuário para liberar o Mercado Pago
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                console.log("Usuário logado:", user.email);
-                // Pequeno delay para garantir que o HTML está 100% renderizado
-                setTimeout(iniciarMercadoPago, 500);
+                setTimeout(iniciarMercadoPago, 1000);
             } else {
-                alert("Você precisa estar logado para assinar.");
-                window.location.href = "index.html";
+                alert("Acesse sua conta para continuar.");
+                window.location.href = "login.html";
             }
         });
     </script>
 </body>
-
 </html>
